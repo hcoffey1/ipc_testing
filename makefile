@@ -3,7 +3,11 @@
 # 
 #**************
 
-targets=./bin ./bin/pipe ./bin/socket ./bin/shared
+targets=./bin \
+		./bin/pipe \
+		./bin/socket_server \
+		./bin/socket_client \
+		./bin/shared
 
 all: $(targets)
 
@@ -25,7 +29,10 @@ ldFlags=$(shell llvm-config --ldflags --libs)
 ./bin/pipe: ./src/pipe.o ./src/util.o
 	$(C) -o $@ $^ $(flags)
 
-./bin/socket: ./src/socket.o ./src/util.o
+./bin/socket_server: ./src/socket_server.o ./src/util.o
+	$(C) -o $@ $^ $(flags)
+
+./bin/socket_client: ./src/socket_client.o ./src/util.o
 	$(C) -o $@ $^ $(flags)
 
 ./bin/shared: ./src/shared.o ./src/util.o
