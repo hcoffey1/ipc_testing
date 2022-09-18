@@ -15,8 +15,11 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define PORT 8073
+//#define PORT 8073
 
 void *map_file(char *filename);
+
+//Ports
+struct sockaddr_in get_server_address(size_t PORT);
 
 #endif
