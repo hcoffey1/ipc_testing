@@ -1,7 +1,7 @@
 #include "util.h"
 
 // Map the specified file into memory and return the starting address
-void *map_file(char *filename)
+void *map_file(char *filename, long * filsesize)
 {
     FILE *fp = fopen(filename, "r");
     if (fp < 0)
@@ -17,6 +17,8 @@ void *map_file(char *filename)
         fprintf(stderr, "Failed to stat file\n");
         exit(-1);
     }
+
+    *filsesize=filestat.st_size;
 
     void *mapaddr = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
 

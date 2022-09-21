@@ -4,6 +4,8 @@
  **********/
 #include "util.h"
 
+long FILE_SIZE;
+
 int main(int argc, char **argv)
 {
 
@@ -27,7 +29,7 @@ int main(int argc, char **argv)
     }
 
     // Map sample data into memory--------
-    void *data = map_file("brown.txt");
+    void *data = map_file("brown.txt", &FILE_SIZE);
 
     // Fork child process----------------
     pid_t id;
@@ -47,7 +49,7 @@ int main(int argc, char **argv)
         close(p1fd[0]);
 
         char inputstr[100];
-        scanf("%s %s", inputstr);
+        scanf("%s", inputstr);
 
         write(p1fd[1], inputstr, strlen(inputstr) + 1);
         close(p1fd[1]);

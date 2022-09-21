@@ -18,7 +18,7 @@
 
 //#define PORT 8073
 
-void *map_file(char *filename);
+void *map_file(char *filename, long * filesize);
 
 //Ports
 struct sockaddr_in get_server_address(size_t PORT);
