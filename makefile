@@ -32,7 +32,7 @@ ldFlags=$(shell llvm-config --ldflags --libs)
 	$(C) -o $@ $^ $(flags)
 
 ./bin/shared: ./src/shared.o ./src/util.o
-	$(C) -o $@ $^ $(flags)
+	$(C) -o $@ $^ $(flags) -lpthread -g
 
 #%.ll: %.cc
 #	$(CUSTOM_CC) -o $@ $< -std=c++14 $(cxxFlags) $(flags) -S -emit-llvm -fverbose-asm

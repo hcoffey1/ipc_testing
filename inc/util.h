@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
