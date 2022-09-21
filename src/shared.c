@@ -4,6 +4,13 @@
  **********/
 #include <util.h>
 
+#define INPUT_FILE "brown.txt"
+
+#define MESSAGE_SIZE (1ul << 8)
+#define SHARED_BUFFER_SIZE (MESSAGE_SIZE)
+
+#define NUM_ITERATIONS 1ul << 4 
+
 // mmap shared memory
 // At start of buffer: 1 byte for state, 4 bytes for message size
 // State
@@ -51,23 +58,47 @@ void *send_thread(void *args)
     struct BufferInfo *bi = (struct BufferInfo *)(sharedBuffer);
     void *bufferStart = sharedBuffer + sizeof(struct BufferInfo);
 
-    int offset = 0; // Offset in data to be sent
-
     int i = 0;
-    while (i < numMessages)
+    while (i < NUM_ITERATIONS)
     {
-        pthread_mutex_lock(&memLock);
-        // If buffer is ready to be written to, copy new data in
-        if (bi->written == 0)
-        {
-            memcpy(bufferStart, data + offset, messageSize);
-            bi->size = messageSize;
-            bi->written = 1;
+        printf("Iteration : %d\n", i);
+        int offset = 0; // Offset in data to be sent
 
-            offset += messageSize;
-            i++;
+        int m = 0;
+        while (m < numMessages)
+        {
+            pthread_mutex_lock(&memLock);
+            // If buffer is ready to be written to, copy new data in
+            if (bi->written == 0)
+            {
+                memcpy(bufferStart, data + offset, messageSize);
+                bi->size = messageSize;
+                bi->written = 1;
+
+                offset += messageSize;
+                m++;
+            }
+            pthread_mutex_unlock(&memLock);
         }
-        pthread_mutex_unlock(&memLock);
+
+        size_t remainderSize = FILE_SIZE - offset;
+        // Send remainder data
+        while (1)
+        {
+            pthread_mutex_lock(&memLock);
+            if (bi->written == 0)
+            {
+                memcpy(bufferStart, data + offset, remainderSize);
+                bi->size = remainderSize;
+                bi->written = 1;
+
+                pthread_mutex_unlock(&memLock);
+                break;
+            }
+            pthread_mutex_unlock(&memLock);
+        }
+
+        i++;
     }
 
     // When done, wait for last sent message to be processed then terminate
@@ -115,12 +146,22 @@ void *recieve_thread(void *args)
         pthread_mutex_unlock(&memLock);
     }
 
-    printf("Last message recieved : \n");
-    puts(recieveBuff);
-
     return NULL;
 }
 //==============================================
+
+void print_log_header()
+{
+    printf("SHARED MEMORY BUFFER==========\n");
+    printf("MESSAGE SIZE : %lu\n", MESSAGE_SIZE);
+    printf("BUFFER SIZE : %lu\n", SHARED_BUFFER_SIZE);
+    printf("-----\n");
+    printf("Sending : %s\n", INPUT_FILE);
+    printf("File size is : %lu B\n", FILE_SIZE);
+    printf("Remainder data : %lu B\n", FILE_SIZE % MESSAGE_SIZE);
+    printf("Preparing to send %lu messages at size %lu B...\n", FILE_SIZE / MESSAGE_SIZE, MESSAGE_SIZE);
+    printf("==============================\n");
+}
 
 int main(int argc, char **argv)
 {
@@ -132,8 +173,7 @@ int main(int argc, char **argv)
     }
 
     // Create shared memory buffer
-    size_t buffSize = 1 << 10;
-    void *sharedBuffer = allocate_buffer(buffSize);
+    void *sharedBuffer = allocate_buffer(SHARED_BUFFER_SIZE);
 
     if (sharedBuffer == MAP_FAILED)
     {
@@ -147,16 +187,19 @@ int main(int argc, char **argv)
 
     // Prepare arguments for send thread
     struct SharedSendArgs sendArgs;
-    sendArgs.data = map_file("brown.txt", &FILE_SIZE);
-    sendArgs.messageSize = 64;
-    sendArgs.numMessages = 100;
+    sendArgs.data = map_file(INPUT_FILE, &FILE_SIZE);
+    sendArgs.messageSize = MESSAGE_SIZE;
+    sendArgs.numMessages = FILE_SIZE / MESSAGE_SIZE;
     sendArgs.sharedBuffer = sharedBuffer;
 
     // Prepare arguments for recieve thread
-    char recieve[1000];
+    char recieve[MESSAGE_SIZE];
     struct SharedRecieveArgs recArgs;
     recArgs.recieveBuffer = recieve;
     recArgs.sharedBuffer = sharedBuffer;
+
+    //Print test info
+    print_log_header();
 
     // Spin off threads
     printf("Spawning threads\n");
