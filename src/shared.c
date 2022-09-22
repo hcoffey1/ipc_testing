@@ -152,15 +152,16 @@ void *recieve_thread(void *args)
 
 void print_log_header()
 {
-    printf("SHARED MEMORY BUFFER==========\n");
-    printf("MESSAGE SIZE : %lu\n", MESSAGE_SIZE);
-    printf("BUFFER SIZE : %lu\n", SHARED_BUFFER_SIZE);
+    printf("===============================================\n");
+    printf("TYPE: SHARED MEMORY BUFFER\n");
+    printf("MESSAGE SIZE : %lu B\n", MESSAGE_SIZE);
+    printf("BUFFER SIZE : %lu B\n", SHARED_BUFFER_SIZE);
     printf("-----\n");
     printf("Sending : %s\n", INPUT_FILE);
     printf("File size is : %lu B\n", FILE_SIZE);
     printf("Remainder data : %lu B\n", FILE_SIZE % MESSAGE_SIZE);
     printf("Preparing to send %lu messages at size %lu B...\n", FILE_SIZE / MESSAGE_SIZE, MESSAGE_SIZE);
-    printf("==============================\n");
+    printf("===============================================\n");
 }
 
 int main(int argc, char **argv)

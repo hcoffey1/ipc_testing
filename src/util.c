@@ -19,6 +19,7 @@ void *map_file(char *filename, long * filsesize)
     }
 
     *filsesize=filestat.st_size;
+    (*filsesize)++;
 
     void *mapaddr = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
 
