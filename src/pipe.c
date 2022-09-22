@@ -4,12 +4,6 @@
  **********/
 #include "util.h"
 
-#define INPUT_FILE "brown.txt"
-
-#define MESSAGE_SIZE (1ul << 8)
-
-#define NUM_ITERATIONS 1ul << 4
-
 long FILE_SIZE;
 
 void print_log_header()
