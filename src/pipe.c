@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     // }
 
     // Map sample data into memory--------
-    void *data = map_file("brown.txt", &FILE_SIZE);
+    void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
     print_log_header();
 
@@ -130,7 +130,10 @@ int main(int argc, char **argv)
             // Read number of remaining bytes
             read(p1fd[0], &remainder, sizeof(remainder));
 
+#ifdef SHOW_ITERATION
             printf("Iteration : %d\n", iteration);
+#endif
+
             // Read in message
             int i = 0;
             while (i < numMessages)

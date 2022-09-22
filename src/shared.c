@@ -4,13 +4,6 @@
  **********/
 #include <util.h>
 
-#define INPUT_FILE "brown.txt"
-
-#define MESSAGE_SIZE (1ul << 8)
-#define SHARED_BUFFER_SIZE (MESSAGE_SIZE)
-
-#define NUM_ITERATIONS 1ul << 4 
-
 // mmap shared memory
 // At start of buffer: 1 byte for state, 4 bytes for message size
 // State
@@ -61,7 +54,9 @@ void *send_thread(void *args)
     int i = 0;
     while (i < NUM_ITERATIONS)
     {
+#ifdef SHOW_ITERATION
         printf("Iteration : %d\n", i);
+#endif
         int offset = 0; // Offset in data to be sent
 
         int m = 0;
@@ -199,7 +194,7 @@ int main(int argc, char **argv)
     recArgs.recieveBuffer = recieve;
     recArgs.sharedBuffer = sharedBuffer;
 
-    //Print test info
+    // Print test info
     print_log_header();
 
     // Spin off threads

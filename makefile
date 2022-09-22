@@ -14,7 +14,7 @@ all: $(targets)
 
 C=clang
 
-flags=-I./inc -fPIE
+flags=-I./inc -fPIE -MMD
 
 cxxFlags=$(shell llvm-config --cxxflags)
 ldFlags=$(shell llvm-config --ldflags --libs)
@@ -28,7 +28,7 @@ ldFlags=$(shell llvm-config --ldflags --libs)
 ./bin/pipe: ./src/pipe.o ./src/util.o
 	$(C) -o $@ $^ $(flags)
 
-./bin/socket: ./src/socket.o ./src/util.o
+./bin/socket: ./src/socket.o ./src/util.o 
 	$(C) -o $@ $^ $(flags)
 
 ./bin/shared: ./src/shared.o ./src/util.o
@@ -50,5 +50,6 @@ ldFlags=$(shell llvm-config --ldflags --libs)
 #	$(MAKE) -C src_dir clean
 
 clean:
-	rm -rf ./src/*.o ./src/*.ll ./bin
+	rm -rf ./src/*.o ./src/*.ll ./bin ./src/*.d
 
+-include ./src/*.d

@@ -4,6 +4,21 @@
  **********/
 #include "util.h"
 
+long FILE_SIZE;
+
+void print_log_header()
+{
+    printf("===============================================\n");
+    printf("TYPE: SOCKET\n");
+    printf("MESSAGE SIZE : %lu B\n", MESSAGE_SIZE);
+    printf("-----\n");
+    printf("Sending : %s\n", INPUT_FILE);
+    printf("File size is : %lu B\n", FILE_SIZE);
+    printf("Remainder data : %lu B\n", FILE_SIZE % MESSAGE_SIZE);
+    printf("Preparing to send %lu messages at size %lu B...\n", FILE_SIZE / MESSAGE_SIZE, MESSAGE_SIZE);
+    printf("===============================================\n");
+}
+
 // https://opensource.com/article/19/4/interprocess-communication-linux-networking
 
 int main(int argc, char **argv)
@@ -50,7 +65,12 @@ int main(int argc, char **argv)
 
         fprintf(stderr, "Server: Listening on port %lu for connections.\n", PORT);
 
-        // Host loop, accept new connections and recieve messages from clients
+        void *data = map_file(INPUT_FILE, &FILE_SIZE);
+        int numMessages = FILE_SIZE / MESSAGE_SIZE;
+        int remainderSize = FILE_SIZE % MESSAGE_SIZE;
+
+        print_log_header();
+        // Host loop, accept new connections and run test
         while (1)
         {
             struct sockaddr_in clientAddr;
@@ -63,17 +83,33 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < NUM_ITERATIONS; i++)
             {
-                char buffer[257];
-                memset(buffer, '\0', 257);
-                int count = read(clientfd, buffer, 256);
-                if (count > 0)
+                size_t offset = 0;
+
+                // Tell reciever how many messages to expect
+                write(clientfd, &numMessages, sizeof(numMessages));
+
+                // Tell reciever if we need to send a message with the remaining data
+                write(clientfd, &remainderSize, sizeof(remainderSize));
+
+                // Send messages over socket
+                for (int m = 0; m < numMessages; m++)
                 {
-                    puts(buffer);
-                    write(clientfd, buffer, 256);
+                    write(clientfd, data + offset, MESSAGE_SIZE);
+                    offset += MESSAGE_SIZE;
+                }
+
+                // Write remaining data if any
+                if (remainderSize)
+                {
+                    write(clientfd, data + offset, remainderSize);
                 }
             }
+
+            int tmp = -1;
+            write(clientfd, &tmp, sizeof(tmp));
+
             close(clientfd);
         }
     }
@@ -87,12 +123,53 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        // Send data
-        puts("Connected to server, sending message.");
+        char buf[MESSAGE_SIZE];
+        int numMessages;
+        int remainder;
+        int iteration = 0;
+        while (1)
+        {
+            // Read in number of messages to expect
+            int x;
+            while (1)
+            {
+                if (read(socketfd, &numMessages, sizeof(numMessages)) != 0)
+                {
+                    break;
+                }
+            }
 
-        write(socketfd, "Hello world!", strlen("Hello world!"));
+            // Termination signal
+            if (numMessages < 0)
+            {
+                break;
+            }
 
-        puts("Client: Done. Exiting...");
+            // Read number of remaining bytes
+            read(socketfd, &remainder, sizeof(remainder));
+
+#ifdef SHOW_ITERATION
+            printf("Iteration : %d\n", iteration);
+#endif
+
+            // Read in message
+            int i = 0;
+            while (i < numMessages)
+            {
+                if (read(socketfd, buf, MESSAGE_SIZE) != 0)
+                {
+                    i++;
+                }
+            }
+
+            // Read remainder if needed
+            if (remainder)
+            {
+                read(socketfd, buf, remainder);
+            }
+
+            iteration++;
+        }
     }
 
     return 0;
