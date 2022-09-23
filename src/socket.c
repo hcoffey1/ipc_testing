@@ -11,6 +11,7 @@ void print_log_header()
     printf("===============================================\n");
     printf("TYPE: SOCKET\n");
     printf("MESSAGE SIZE : %lu B\n", MESSAGE_SIZE);
+    printf("ITERATION COUNT: %lu\n", NUM_ITERATIONS);
     printf("-----\n");
     printf("Sending : %s\n", INPUT_FILE);
     printf("File size is : %lu B\n", FILE_SIZE);
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fprintf(stderr, "Server: Listening for connections.\n");
+        fprintf(stderr, "Server: Listening on port %lu for connections.\n", PORT);
 
         void *data = map_file(INPUT_FILE, &FILE_SIZE);
         int numMessages = FILE_SIZE / MESSAGE_SIZE;
