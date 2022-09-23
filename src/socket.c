@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     size_t PORT = atoi(argv[2]);
 
     // Get socket FD
-    int socketfd = socket(AF_LOCAL, SOCK_STREAM, 0);
+    int socketfd = socket(AF_INET, SOCK_STREAM, 0);
     if (socketfd < 0)
     {
         fprintf(stderr, "Failed to open socket.\n");

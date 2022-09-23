@@ -39,7 +39,7 @@ struct sockaddr_in get_server_address(size_t PORT)
     struct sockaddr_in servAddr;
     memset(&servAddr, 0, sizeof(servAddr));
 
-    servAddr.sin_family = AF_LOCAL;
+    servAddr.sin_family = AF_INET;
     servAddr.sin_addr.s_addr = INADDR_ANY;
     servAddr.sin_port = htons(PORT);
 
