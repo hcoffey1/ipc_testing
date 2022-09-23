@@ -25,18 +25,17 @@ int main(int argc, char **argv)
 {
 
     // Parse command line arguments----------
-    if (argc != 3)
+    if (argc != 2)
     {
-        fprintf(stderr, "Usage: %s s/c port\n", argv[0]);
+        fprintf(stderr, "Usage: %s s/c\n", argv[0]);
         return 1;
     }
 
     // Determine if we are host/client and the port number
     int isHost = argv[1][0] == 's';
-    size_t PORT = atoi(argv[2]);
 
     // Get socket FD
-    int socketfd = socket(AF_LOCAL, SOCK_STREAM, 0);
+    int socketfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (socketfd < 0)
     {
         fprintf(stderr, "Failed to open socket.\n");
@@ -44,13 +43,14 @@ int main(int argc, char **argv)
     }
 
     // Fill out server address socket struct
-    struct sockaddr_in servAddr = get_server_address(PORT);
+    struct sockaddr_un servAddr = get_server_address();
 
     // Host code---------------------
     if (isHost)
     {
         // Bind socket to host address
-        if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
+        if (bind(socketfd, (struct sockaddr *)&servAddr, SUN_LEN(&servAddr)) < 0)
+        //if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
         {
             perror("bind");
             return 1;
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fprintf(stderr, "Server: Listening on port %lu for connections.\n", PORT);
+        fprintf(stderr, "Server: Listening for connections.\n");
 
         void *data = map_file(INPUT_FILE, &FILE_SIZE);
         int numMessages = FILE_SIZE / MESSAGE_SIZE;

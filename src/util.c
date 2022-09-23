@@ -34,14 +34,13 @@ void *map_file(char *filename, long * filsesize)
     return mapaddr;
 }
 
-struct sockaddr_in get_server_address(size_t PORT)
+struct sockaddr_un get_server_address()
 {
-    struct sockaddr_in servAddr;
+    struct sockaddr_un servAddr;
     memset(&servAddr, 0, sizeof(servAddr));
 
-    servAddr.sin_family = AF_LOCAL;
-    servAddr.sin_addr.s_addr = INADDR_ANY;
-    servAddr.sin_port = htons(PORT);
+    servAddr.sun_family = AF_UNIX;
+    strcpy(servAddr.sun_path, SOCK_PATH);
 
 	return servAddr;
 }
