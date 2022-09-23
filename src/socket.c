@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     // Parse command line arguments----------
     if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s s/c port\n", argv[0]);
+        fprintf(stderr, "Usage: %s s/c\n", argv[0]);
         return 1;
     }
 
@@ -51,6 +51,7 @@ int main(int argc, char **argv)
     {
         // Bind socket to host address
         if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
+        //if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
         {
             perror("bind");
             return 1;
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fprintf(stderr, "Server: Listening on port %lu for connections.\n", PORT);
+        fprintf(stderr, "Server: Listening for connections.\n");
 
         void *data = map_file(INPUT_FILE, &FILE_SIZE);
         int numMessages = FILE_SIZE / MESSAGE_SIZE;
