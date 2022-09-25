@@ -5,6 +5,8 @@
 #include "util.h"
 
 long FILE_SIZE;
+size_t MESSAGE_SIZE;
+size_t NUM_ITERATIONS;
 
 void print_log_header()
 {
@@ -21,6 +23,15 @@ void print_log_header()
 
 int main(int argc, char **argv)
 {
+    if(argc != 3)
+    {
+        fprintf(stderr, "Usage: %s message_size iterations\n", argv[0]);
+        return 1;
+    }
+
+    MESSAGE_SIZE = 1ul << atoi(argv[1]);
+    NUM_ITERATIONS = 1ul << atoi(argv[2]);
+
 
     // Setup pipes------------------
     // Parent ---> Child messages

@@ -4,6 +4,10 @@
  **********/
 #include <util.h>
 
+size_t MESSAGE_SIZE;
+size_t NUM_ITERATIONS;
+size_t SHARED_BUFFER_SIZE;
+
 // mmap shared memory
 // At start of buffer: 1 byte for state, 4 bytes for message size
 // State
@@ -161,6 +165,18 @@ void print_log_header()
 
 int main(int argc, char **argv)
 {
+
+    if(argc != 3)
+    {
+        fprintf(stderr, "Usage: %s message_size iterations\n", argv[0]);
+        return 1;
+    }
+
+    MESSAGE_SIZE = 1ul << atoi(argv[1]);
+    NUM_ITERATIONS = 1ul << atoi(argv[2]);
+
+    SHARED_BUFFER_SIZE = MESSAGE_SIZE;
+
     // Init mutex lock
     if (pthread_mutex_init(&memLock, NULL) != 0)
     {

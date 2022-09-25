@@ -5,6 +5,8 @@
 #include "util.h"
 
 long FILE_SIZE;
+size_t MESSAGE_SIZE;
+size_t NUM_ITERATIONS;
 
 void print_log_header()
 {
@@ -26,15 +28,27 @@ int main(int argc, char **argv)
 {
 
     // Parse command line arguments----------
-    if (argc != 3)
+    if (argc < 2)
     {
-        fprintf(stderr, "Usage: %s s/c\n", argv[0]);
+        fprintf(stderr, "Usage: %s s/c message_size iterations\n", argv[0]);
         return 1;
     }
 
     // Determine if we are host/client and the port number
     int isHost = argv[1][0] == 's';
+
+    if (isHost && argc != 5)
+    {
+        fprintf(stderr, "Usage: %s s/c message_size iterations(if server)\n", argv[0]);
+        return 1;
+    }
+    else if (argc < 4)
+    {
+        fprintf(stderr, "Usage: %s s/c message_size iterations(if server)\n", argv[0]);
+    }
+
     size_t PORT = atoi(argv[2]);
+    MESSAGE_SIZE = 1ul << atoi(argv[3]);
 
     // Get socket FD
     int socketfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -50,9 +64,11 @@ int main(int argc, char **argv)
     // Host code---------------------
     if (isHost)
     {
+        NUM_ITERATIONS = 1ul << atoi(argv[4]);
+
         // Bind socket to host address
         if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
-        //if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
+        // if (bind(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
         {
             perror("bind");
             return 1;
@@ -118,6 +134,8 @@ int main(int argc, char **argv)
     // Client code----------------------
     else
     {
+        char *buf = malloc(MESSAGE_SIZE);
+
         // Connect to server address
         if (connect(socketfd, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
         {
@@ -125,7 +143,6 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        char buf[MESSAGE_SIZE];
         int numMessages;
         int remainder;
         int iteration = 0;
