@@ -48,10 +48,10 @@ struct sockaddr_in get_server_address(size_t PORT)
 
 void send_metadata(int fd, int numMessages, int remainderSize)
 {
-    // Tell reciever how many messages to expect
+    // Tell receiver how many messages to expect
     write(fd, &numMessages, sizeof(numMessages));
 
-    // Tell reciever if we need to send a message with the remaining data
+    // Tell receiver if we need to send a message with the remaining data
     write(fd, &remainderSize, sizeof(remainderSize));
 }
 

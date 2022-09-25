@@ -28,10 +28,10 @@ struct SharedSendArgs
     size_t numMessages;
 };
 
-struct SharedRecieveArgs
+struct SharedReceiveArgs
 {
     void *sharedBuffer;
-    void *recieveBuffer;
+    void *receiveBuffer;
 };
 
 long FILE_SIZE;
@@ -134,13 +134,13 @@ void hc_shared_write_loop(void *sharedBuffer, void *data, size_t messageSize, si
 
 // If buffer has been written to, copy values in.
 // Send confirmation by clearing written state
-int shared_read(void *sharedBuffer, void *recieveBuffer, struct BufferInfo *bi)
+int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
 {
     int readret = 0;
     pthread_mutex_lock(&memLock);
     if (bi->written == 1)
     {
-        memcpy(recieveBuffer, sharedBuffer, bi->size);
+        memcpy(receiveBuffer, sharedBuffer, bi->size);
         bi->written = 0;
     }
     else if (bi->written == 2)
@@ -152,7 +152,7 @@ int shared_read(void *sharedBuffer, void *recieveBuffer, struct BufferInfo *bi)
     return readret;
 }
 
-void hc_shared_read_loop(void *sharedBuffer, void *recieveBuffer)
+void hc_shared_read_loop(void *sharedBuffer, void *receiveBuffer)
 {
     // Retrieve buffer state
     struct BufferInfo *bi = sharedBuffer;
@@ -160,7 +160,7 @@ void hc_shared_read_loop(void *sharedBuffer, void *recieveBuffer)
 
     while (1)
     {
-        if (shared_read(sharedBuffer, recieveBuffer, bi) < 0)
+        if (shared_read(sharedBuffer, receiveBuffer, bi) < 0)
         {
             break;
         }
@@ -182,15 +182,15 @@ void *send_thread(void *args)
     return NULL;
 }
 
-// Reciever -----------------------
-void *recieve_thread(void *args)
+// Receiver -----------------------
+void *receive_thread(void *args)
 {
     // Read in arguments from pointer
-    void *sharedBuffer = ((struct SharedRecieveArgs *)args)->sharedBuffer;
-    void *recieveBuffer = ((struct SharedRecieveArgs *)args)->recieveBuffer;
+    void *sharedBuffer = ((struct SharedReceiveArgs *)args)->sharedBuffer;
+    void *receiveBuffer = ((struct SharedReceiveArgs *)args)->receiveBuffer;
 
     // Example work loop
-    hc_shared_read_loop(sharedBuffer, recieveBuffer);
+    hc_shared_read_loop(sharedBuffer, receiveBuffer);
 
     return NULL;
 }
@@ -258,10 +258,10 @@ int main(int argc, char **argv)
     sendArgs.numMessages = FILE_SIZE / MESSAGE_SIZE;
     sendArgs.sharedBuffer = sharedBuffer;
 
-    // Prepare arguments for recieve thread
-    char recieve[MESSAGE_SIZE];
-    struct SharedRecieveArgs recArgs;
-    recArgs.recieveBuffer = recieve;
+    // Prepare arguments for receive thread
+    char receive[MESSAGE_SIZE];
+    struct SharedReceiveArgs recArgs;
+    recArgs.receiveBuffer = receive;
     recArgs.sharedBuffer = sharedBuffer;
 
     // Print test info
@@ -269,12 +269,12 @@ int main(int argc, char **argv)
 
     // Spin off threads
     printf("Spawning threads\n");
-    pthread_t send_tid, recieve_tid;
+    pthread_t send_tid, receive_tid;
     pthread_create(&send_tid, NULL, send_thread, &sendArgs);
-    pthread_create(&recieve_tid, NULL, recieve_thread, &recArgs);
+    pthread_create(&receive_tid, NULL, receive_thread, &recArgs);
 
     pthread_join(send_tid, NULL);
-    pthread_join(recieve_tid, NULL);
+    pthread_join(receive_tid, NULL);
 
     return 0;
 }
