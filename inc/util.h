@@ -30,4 +30,13 @@ void *map_file(char *filename, long *filesize);
 // Ports
 struct sockaddr_in get_server_address(size_t PORT);
 
+void send_metadata(int fd, int numMessages, int remainderSize);
+void send_messages(int fd, void *data, size_t messageSize, size_t numMessages, size_t remainderSize);
+void send_kill(int fd);
+
+int read_metadata(int socketfd, int *numMessages, int *remainder);
+void read_messages(int fd, void *destbuffer, int messageSize, int numMessages, int remainder);
+
+void hc_write_loop(int outfd, void * data, size_t fileSize, size_t messageSize, size_t numIterations);
+void hc_read_loop(int infd, size_t messageSize);
 #endif

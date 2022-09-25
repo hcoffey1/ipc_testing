@@ -23,7 +23,7 @@ void print_log_header()
 
 int main(int argc, char **argv)
 {
-    if(argc != 3)
+    if (argc != 3)
     {
         fprintf(stderr, "Usage: %s message_size iterations\n", argv[0]);
         return 1;
@@ -32,13 +32,12 @@ int main(int argc, char **argv)
     MESSAGE_SIZE = 1ul << atoi(argv[1]);
     NUM_ITERATIONS = 1ul << atoi(argv[2]);
 
-
     // Setup pipes------------------
     // Parent ---> Child messages
     int p1fd[2];
 
     // Child ---> Parent messages
-    int p2fd[2];
+    // int p2fd[2];
 
     if (pipe(p1fd) == -1)
     {
@@ -51,11 +50,6 @@ int main(int argc, char **argv)
     //     fprintf(stderr, "Failed to create pipe.\n");
     //     return 1;
     // }
-
-    // Map sample data into memory--------
-    void *data = map_file(INPUT_FILE, &FILE_SIZE);
-
-    print_log_header();
 
     // Fork child process----------------
     pid_t id;
@@ -70,37 +64,16 @@ int main(int argc, char **argv)
     // Parent process--------
     else if (id != 0)
     {
+        // Close reading end of pipe
         close(p1fd[0]);
 
-        int numMessages = FILE_SIZE / MESSAGE_SIZE;
-        int remainderSize = FILE_SIZE % MESSAGE_SIZE;
-        for (int i = 0; i < NUM_ITERATIONS; i++)
-        {
-            size_t offset = 0;
+        // Map sample data into memory--------
+        void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
-            // Tell reciever how many messages to expect
-            write(p1fd[1], &numMessages, sizeof(numMessages));
+        print_log_header();
 
-            // Tell reciever if we need to send a message with the remaining data
-            write(p1fd[1], &remainderSize, sizeof(remainderSize));
-
-            // Send messages over pipe
-            for (int m = 0; m < numMessages; m++)
-            {
-                write(p1fd[1], data + offset, MESSAGE_SIZE);
-                offset += MESSAGE_SIZE;
-            }
-
-            // Write remaining data if any
-            if (remainderSize)
-            {
-                write(p1fd[1], data + offset, remainderSize);
-            }
-        }
-
-        int tmp = -1;
-        write(p1fd[1], &tmp, sizeof(tmp));
-        close(p1fd[1]);
+        // Example work loop
+        hc_write_loop(p1fd[1], data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS);
 
         wait(NULL);
     }
@@ -108,55 +81,11 @@ int main(int argc, char **argv)
     // Child process---------
     else if (id == 0)
     {
+        // Close writing end of pipe
         close(p1fd[1]);
 
-        char buf[MESSAGE_SIZE];
-        int numMessages;
-        int remainder;
-        int iteration = 0;
-        while (1)
-        {
-            // Read in number of messages to expect
-            int x;
-            while (1)
-            {
-                if (read(p1fd[0], &numMessages, sizeof(numMessages)) != 0)
-                {
-                    break;
-                }
-            }
-
-            // Termination signal
-            if (numMessages < 0)
-            {
-                break;
-            }
-
-            // Read number of remaining bytes
-            read(p1fd[0], &remainder, sizeof(remainder));
-
-#ifdef SHOW_ITERATION
-            printf("Iteration : %d\n", iteration);
-#endif
-
-            // Read in message
-            int i = 0;
-            while (i < numMessages)
-            {
-                if (read(p1fd[0], buf, MESSAGE_SIZE) != 0)
-                {
-                    i++;
-                }
-            }
-
-            // Read remainder if needed
-            if (remainder)
-            {
-                read(p1fd[0], buf, remainder);
-            }
-
-            iteration++;
-        }
+        // Example work loop
+        hc_read_loop(p1fd[0], MESSAGE_SIZE);
 
         close(p1fd[0]);
     }
