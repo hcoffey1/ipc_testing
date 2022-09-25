@@ -89,47 +89,44 @@ int main(int argc, char **argv)
 
         print_log_header();
         // Host loop, accept new connections and run test
-        while (1)
+        struct sockaddr_in clientAddr;
+        socklen_t len = sizeof(clientAddr);
+
+        int clientfd = accept(socketfd, (struct sockaddr *)&clientAddr, &len);
+        if (clientfd < 0)
         {
-            struct sockaddr_in clientAddr;
-            socklen_t len = sizeof(clientAddr);
-
-            int clientfd = accept(socketfd, (struct sockaddr *)&clientAddr, &len);
-            if (clientfd < 0)
-            {
-                perror("accept");
-                continue;
-            }
-
-            for (int i = 0; i < NUM_ITERATIONS; i++)
-            {
-                size_t offset = 0;
-
-                // Tell reciever how many messages to expect
-                write(clientfd, &numMessages, sizeof(numMessages));
-
-                // Tell reciever if we need to send a message with the remaining data
-                write(clientfd, &remainderSize, sizeof(remainderSize));
-
-                // Send messages over socket
-                for (int m = 0; m < numMessages; m++)
-                {
-                    write(clientfd, data + offset, MESSAGE_SIZE);
-                    offset += MESSAGE_SIZE;
-                }
-
-                // Write remaining data if any
-                if (remainderSize)
-                {
-                    write(clientfd, data + offset, remainderSize);
-                }
-            }
-
-            int tmp = -1;
-            write(clientfd, &tmp, sizeof(tmp));
-
-            close(clientfd);
+            perror("accept");
+            return 1;
         }
+
+        for (int i = 0; i < NUM_ITERATIONS; i++)
+        {
+            size_t offset = 0;
+
+            // Tell reciever how many messages to expect
+            write(clientfd, &numMessages, sizeof(numMessages));
+
+            // Tell reciever if we need to send a message with the remaining data
+            write(clientfd, &remainderSize, sizeof(remainderSize));
+
+            // Send messages over socket
+            for (int m = 0; m < numMessages; m++)
+            {
+                write(clientfd, data + offset, MESSAGE_SIZE);
+                offset += MESSAGE_SIZE;
+            }
+
+            // Write remaining data if any
+            if (remainderSize)
+            {
+                write(clientfd, data + offset, remainderSize);
+            }
+        }
+
+        int tmp = -1;
+        write(clientfd, &tmp, sizeof(tmp));
+
+        close(clientfd);
     }
     // Client code----------------------
     else
