@@ -46,6 +46,18 @@ struct sockaddr_in get_server_address(size_t PORT)
     return servAddr;
 }
 
+void send_ack(int fd)
+{
+    int tmp = 1;
+    write(fd, &tmp, sizeof(tmp));
+}
+
+void read_ack(int fd)
+{
+    int tmp;
+    read(fd, &tmp, sizeof(tmp));
+}
+
 void send_metadata(int fd, int numMessages, int remainderSize)
 {
     // Tell receiver how many messages to expect
@@ -122,7 +134,31 @@ void read_messages(int fd, void *destbuffer, int messageSize, int numMessages, i
     }
 }
 
-void hc_write_loop(int outfd, void * data, size_t fileSize, size_t messageSize, size_t numIterations)
+void hc_latency_loop(int outfd, int infd, void * data, size_t messageSize, size_t numMessages, int isHost)
+{
+    char * inbuf = malloc(messageSize);
+    if(isHost)
+    {
+        printf("Running latency test\n");
+        size_t offset = 0;
+        for(int i = 0; i < numMessages; i++)
+        {
+            write(outfd, data + offset, messageSize);
+            read(infd, inbuf, messageSize);
+            offset += messageSize;
+        }
+    }
+    else
+    {
+        for(int i = 0; i < numMessages; i++)
+        {
+            read(infd, inbuf, messageSize);
+            write(outfd, inbuf, messageSize);
+        }
+    }
+}
+
+void hc_write_loop(int outfd, int infd, void * data, size_t fileSize, size_t messageSize, size_t numIterations)
 {
     int numMessages = fileSize / messageSize;
     int remainderSize = fileSize % messageSize;
@@ -135,13 +171,16 @@ void hc_write_loop(int outfd, void * data, size_t fileSize, size_t messageSize, 
 
         // Send the messages
         send_messages(outfd, data, messageSize, numMessages, remainderSize);
+
+        read_ack(infd);
     }
 
     // Close client
     send_kill(outfd);
 }
 
-void hc_read_loop(int infd, size_t messageSize)
+
+void hc_read_loop(int outfd, int infd, size_t messageSize)
 {
     int numMessages;
     int remainder;
@@ -161,6 +200,8 @@ void hc_read_loop(int infd, size_t messageSize)
 
         // Read messages from host
         read_messages(infd, buf, messageSize, numMessages, remainder);
+
+        send_ack(outfd);
 
         iteration++;
     }

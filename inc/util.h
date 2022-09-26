@@ -37,6 +37,8 @@ void send_kill(int fd);
 int read_metadata(int socketfd, int *numMessages, int *remainder);
 void read_messages(int fd, void *destbuffer, int messageSize, int numMessages, int remainder);
 
-void hc_write_loop(int outfd, void * data, size_t fileSize, size_t messageSize, size_t numIterations);
-void hc_read_loop(int infd, size_t messageSize);
+void hc_write_loop(int outfd, int infd, void * data, size_t fileSize, size_t messageSize, size_t numIterations);
+void hc_read_loop(int outfd, int infd, size_t messageSize);
+
+void hc_latency_loop(int outfd, int infd, void * data, size_t messageSize, size_t numMessages, int isHost);
 #endif

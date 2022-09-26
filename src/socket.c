@@ -119,6 +119,8 @@ int main(int argc, char **argv)
     size_t PORT = atoi(argv[2]);
     MESSAGE_SIZE = 1ul << atoi(argv[3]);
 
+    size_t NUM_MESSAGES = 1ul << 10;
+
     // Host code---------------------
     if (isHost)
     {
@@ -134,7 +136,8 @@ int main(int argc, char **argv)
         int clientfd = host_server(PORT);
 
         // Example work loop
-        hc_write_loop(clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS);
+        hc_write_loop(clientfd, clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS);
+        hc_latency_loop(clientfd, clientfd, data, MESSAGE_SIZE, NUM_MESSAGES, 1);
     }
     // Client code----------------------
     else
@@ -143,7 +146,8 @@ int main(int argc, char **argv)
         int hostfd = client_connect(PORT);
 
         // Example work loop
-        hc_read_loop(hostfd, MESSAGE_SIZE);
+        hc_read_loop(hostfd, hostfd, MESSAGE_SIZE);
+        hc_latency_loop(hostfd, hostfd, NULL, MESSAGE_SIZE, NUM_MESSAGES, 0);
     }
 
     return 0;
