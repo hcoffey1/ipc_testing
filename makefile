@@ -12,7 +12,7 @@ all: $(targets)
 
 .PHONY: clean
 
-C=clang
+C=gcc
 
 flags=-I./inc -fPIE -MMD
 

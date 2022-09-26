@@ -73,7 +73,7 @@ void send_messages(int fd, void *data, size_t messageSize, size_t numMessages, s
     }
 }
 
-void send_kill(fd)
+void send_kill(int fd)
 {
     int tmp = -1;
     write(fd, &tmp, sizeof(tmp));
