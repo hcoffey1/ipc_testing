@@ -7,6 +7,8 @@
 size_t MESSAGE_SIZE;
 size_t SHARED_BUFFER_SIZE;
 
+void * sharedBuffer2;
+
 // mmap shared memory
 // At start of buffer: 1 byte for state, 4 bytes for message size
 // State
@@ -17,6 +19,7 @@ struct BufferInfo
 {
     unsigned int size;
     unsigned char written;
+    unsigned char id;
 };
 
 struct SharedSendArgs
@@ -55,7 +58,7 @@ void *get_buffer_write_address(void *sharedBuffer)
 
 // If buffer has been written to, copy values in.
 // Send confirmation by clearing written state
-int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
+int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi, int isHost)
 {
     int readret = 0;
     while(1)
@@ -65,6 +68,7 @@ int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
         {
             memcpy(receiveBuffer, sharedBuffer, bi->size);
             bi->written = 0;
+            bi->id = isHost;
             pthread_mutex_unlock(&memLock);
             break;
         }
@@ -72,6 +76,7 @@ int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
         {
             readret = -1;
             bi->written = 0;
+            bi->id = isHost;
             pthread_mutex_unlock(&memLock);
             break;
         }
@@ -82,7 +87,7 @@ int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
 }
 
 // Return true if write was completed
-int shared_write(void *buffer, void *data, size_t messageSize, struct BufferInfo *bi)
+int shared_write(void *buffer, void *data, size_t messageSize, struct BufferInfo *bi, int isHost)
 {
     int writeret = 0;
     while(1)
@@ -94,6 +99,7 @@ int shared_write(void *buffer, void *data, size_t messageSize, struct BufferInfo
             memcpy(buffer, data, messageSize);
             bi->size = messageSize;
             bi->written = 1;
+            bi->id = isHost;
 
             writeret = 1;
             pthread_mutex_unlock(&memLock);
@@ -101,6 +107,7 @@ int shared_write(void *buffer, void *data, size_t messageSize, struct BufferInfo
         }
         pthread_mutex_unlock(&memLock);
     }
+
     return writeret;
 }
 
@@ -109,7 +116,7 @@ void shared_send_messages(void *buffer, struct BufferInfo *bi, void *data, size_
     int m = 0;
     while (m < numMessages)
     {
-        shared_write(buffer, data, MESSAGE_SIZE, bi);
+        shared_write(buffer, data, MESSAGE_SIZE, bi, 1);
         m++;
     }
 
@@ -131,29 +138,44 @@ void shared_send_kill(struct BufferInfo *bi)
     }
 }
 
+void sync2(struct BufferInfo * bi, int id, int written)
+{
+    while(1){
+        pthread_mutex_lock(&memLock);
+        if(bi->id == id && bi->written == written)
+        {
+            pthread_mutex_unlock(&memLock);
+            break;
+        }
+        pthread_mutex_unlock(&memLock);
+    }
+}
+
 void hc_shared_latency_loop(void* sharedBuffer, void * data, size_t messageSize, size_t numMessages, int isHost)
 {
     struct BufferInfo *bi = sharedBuffer;
+    struct BufferInfo *bi2 = sharedBuffer2;
+
     void *bufferStart = get_buffer_write_address(sharedBuffer);
+    void *bufferStart2 = get_buffer_write_address(sharedBuffer2);
+
     char * inbuf = malloc(messageSize);
+
     if(isHost)
     {
         printf("Running latency test\n");
         for(int i = 0; i < numMessages; i++)
         {
-            shared_write(bufferStart, data, messageSize, bi);
-            while(bi->written){}
-            shared_read(bufferStart, inbuf, bi);
+            shared_write(bufferStart, data, messageSize, bi, isHost);
+            shared_read(bufferStart2, inbuf, bi2, isHost);
         }
-        printf("Done\n");
     }
     else
     {
         for(int i = 0; i < numMessages; i++)
         {
-            shared_read(bufferStart, inbuf, bi);
-            shared_write(bufferStart, inbuf, messageSize, bi);
-            while(bi->written){}
+            shared_read(bufferStart, inbuf, bi, isHost);
+            shared_write(bufferStart2, inbuf, messageSize, bi2, isHost);
         }
     }
 }
@@ -185,7 +207,7 @@ void hc_shared_read_loop(void *sharedBuffer, void *receiveBuffer, size_t message
 
     while (1)
     {
-        if (shared_read(sharedBuffer, receiveBuffer, bi) < 0)
+        if (shared_read(sharedBuffer, receiveBuffer, bi, 0) < 0)
         {
             break;
         }
@@ -255,6 +277,7 @@ void *init_shared_buffer(size_t bufferSize)
     // Clear write state for buffer
     struct BufferInfo *bi = (struct BufferInfo *)(sharedBuffer);
     bi->written = 0;
+    bi->id = 0;
 
     return sharedBuffer;
 }
@@ -280,6 +303,7 @@ int main(int argc, char **argv)
     }
 
     void *sharedBuffer = init_shared_buffer(SHARED_BUFFER_SIZE);
+    sharedBuffer2 = init_shared_buffer(SHARED_BUFFER_SIZE);
 
     size_t numMessages = 1ul<<10;
 
