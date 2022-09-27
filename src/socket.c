@@ -6,14 +6,12 @@
 
 long FILE_SIZE;
 size_t MESSAGE_SIZE;
-size_t NUM_ITERATIONS;
 
 void print_log_header()
 {
     printf("===============================================\n");
     printf("TYPE: SOCKET\n");
     printf("MESSAGE SIZE : %lu B\n", MESSAGE_SIZE);
-    printf("ITERATION COUNT: %lu\n", NUM_ITERATIONS);
     printf("-----\n");
     printf("Sending : %s\n", INPUT_FILE);
     printf("File size is : %lu B\n", FILE_SIZE);
@@ -124,9 +122,6 @@ int main(int argc, char **argv)
     // Host code---------------------
     if (isHost)
     {
-
-        NUM_ITERATIONS = 1ul << atoi(argv[4]);
-
         void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
         // Print log information at top of run
@@ -136,7 +131,7 @@ int main(int argc, char **argv)
         int clientfd = host_server(PORT);
 
         // Example work loop
-        hc_write_loop(clientfd, clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS, NUM_MESSAGES);
+        hc_write_loop(clientfd, clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_MESSAGES);
         hc_latency_loop(clientfd, clientfd, data, MESSAGE_SIZE, NUM_MESSAGES, 1);
     }
     // Client code----------------------

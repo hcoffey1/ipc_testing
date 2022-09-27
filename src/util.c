@@ -1,5 +1,4 @@
 #include "util.h"
-   #include<fcntl.h> 
 
 // Map the specified file into memory and return the starting address
 void *map_file(char *filename, long *filsesize)
@@ -73,18 +72,13 @@ void send_messages(int fd, void *data, size_t messageSize, size_t numMessages, s
     //size_t offset = 0;
 
     // Send messages over socket
+    printf("Starting\n");
     for (int m = 0; m < numMessages; m++)
     {
-        //write(fd, data + offset, messageSize);
         write(fd, data, messageSize);
-        //offset += messageSize;
     }
 
-    // Write remaining data if any
-    if (remainderSize)
-    {
-     //   write(fd, data + offset, remainderSize);
-    }
+    printf("Done\n");
 }
 
 void send_kill(int fd)
@@ -117,110 +111,79 @@ int read_metadata(int socketfd, int *numMessages, int *remainder)
     return 0;
 }
 
-void read_messages(int fd, void *destbuffer, int messageSize, int numMessages, int remainder)
+void read_messages(int fd, void *destbuffer, int messageSize)
 {
     // Read in message
     int i = 0;
-    while (i < numMessages)
+    while (1)
     {
-        if (read(fd, destbuffer, messageSize) != 0)
+        int y = read(fd, destbuffer, messageSize);
+        if (y == 0)
         {
-            i++;
+            break;
         }
     }
-
-    // Read remainder if needed
-    if (remainder)
-    {
-        read(fd, destbuffer, remainder);
-    }
 }
+
+//Can only read 64kb at once from fd
+#define BUFFER_LIMIT (1<<16)
+
 void hc_latency_loop(int outfd, int infd, void * data, size_t messageSize, size_t numMessages, int isHost)
 {
-    fcntl(outfd, F_SETFL, O_NONBLOCK);
     char * inbuf = malloc(messageSize);
     if(isHost)
     {
         printf("Running latency test\n");
-        //size_t offset = 0;
         for(int i = 0; i < numMessages; i++)
         {
-            //printf("H: Writing at size : %lu\n", messageSize);
             write(outfd, data, messageSize);
-            //printf("Write returned: %d\n", x);
-            //write(outfd, data + offset, messageSize);
-            //printf("H: Reading at size : %lu\n", messageSize);
+
             read(infd, inbuf, messageSize);
-            //puts(inbuf);
-            //puts(inbuf);
-            //        offset += messageSize;
+            for(int j = 0; j < messageSize/BUFFER_LIMIT; j++)
+                read(infd, inbuf, messageSize);
         }
+        printf("Done\n");
     }
     else
     {
         for(int i = 0; i < numMessages; i++)
         {
+            //Perform multiple reads if necessary for large writes
             read(infd, inbuf, messageSize);
+            for(int j = 0; j < messageSize/BUFFER_LIMIT; j++)
+                read(infd, inbuf, messageSize);
+
             write(outfd, inbuf, messageSize);
         }
     }
 }
 
-void hc_write_loop(int outfd, int infd, void * data, size_t fileSize, size_t messageSize, size_t numIterations, size_t numMessages)
+void hc_write_loop(int outfd, int infd, void * data, size_t fileSize, size_t messageSize, size_t numMessages)
 {
-    //int numMessages = fileSize / messageSize;
-    //int remainderSize = fileSize % messageSize;
-
-    // Work loop
-    //for (int i = 0; i < numIterations; i++)
-    //{
-    // Let the client know how many messages to expect
-    //send_metadata(outfd, numMessages, remainderSize);
     printf("Sending num messages: %lu\n", numMessages);
     printf("Sending message size: %lu\n", messageSize);
 
     // Send the messages
     send_messages(outfd, data, messageSize, numMessages, 0);
-    //send_messages(outfd, data, messageSize, numMessages, remainderSize);
+    close(outfd);
 
     read_ack(infd);
-    printf("Recieved ack\n");
-    //}
 
-    //printf("Sending kill\n");
-    // Close client
-    //send_kill(outfd);
+    printf("Recieved ack\n");
 }
 
 
 void hc_read_loop(int outfd, int infd, size_t messageSize, size_t numMessages)
 {
-    //int numMessages;
     int remainder;
     int iteration = 0;
     char *buf = malloc(messageSize);
-    //while (1)
-    //{
-    // Read in how many messages to expect
-    //if (read_metadata(infd, &numMessages, &remainder) == -1)
-    //{
-    //    break;
-    //}
-
-    //printf("reading num messages: %lu\n", numMessages);
-    //printf("reading message size: %lu\n", messageSize);
-
-#ifdef SHOW_ITERATION
-    printf("Iteration : %d\n", iteration);
-#endif
 
     // Read messages from host
-    read_messages(infd, buf, messageSize, numMessages, 0);
+    read_messages(infd, buf, messageSize);
 
     printf("Sending ack\n");
     send_ack(outfd);
 
-    iteration++;
-    //}
     free(buf);
 }

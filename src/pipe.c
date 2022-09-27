@@ -6,7 +6,6 @@
 
 long FILE_SIZE;
 size_t MESSAGE_SIZE;
-size_t NUM_ITERATIONS;
 
 void print_log_header()
 {
@@ -55,7 +54,6 @@ int main(int argc, char **argv)
     }
 
     MESSAGE_SIZE = 1ul << atoi(argv[1]);
-    NUM_ITERATIONS = 1ul << atoi(argv[2]);
     size_t NUM_MESSAGES = 1ul << 10;
 
 
@@ -73,9 +71,7 @@ int main(int argc, char **argv)
     // Map sample data into memory--------
     void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
-    //int numMessages = FILE_SIZE / MESSAGE_SIZE;
     int numMessages = 1ul << 10;
-    //int remainderSize = fileSize % messageSize;
 
     // Fork child process----------------
     pid_t id;
@@ -87,21 +83,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-
     // Parent process--------
     else if (id != 0)
     {
-        
         init_parent_fd();
 
         int writetochild_fd = p1fd[1];
         int readfromchild_fd = p2fd[0];
 
-
-        //print_log_header();
-
         // Example work loop
-        hc_write_loop(writetochild_fd, readfromchild_fd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS, numMessages);
+        hc_write_loop(writetochild_fd, readfromchild_fd, data, FILE_SIZE, MESSAGE_SIZE, numMessages);
         hc_latency_loop(writetochild_fd, readfromchild_fd, data, MESSAGE_SIZE, numMessages, 1);
 
         wait(NULL);
@@ -114,9 +105,6 @@ int main(int argc, char **argv)
 
         int writetohost_fd = p2fd[1];
         int readfromhost_fd = p1fd[0];
-
-        // Close writing end of pipe
-        //close(p1fd[1]);
 
         // Example work loop
         hc_read_loop(writetohost_fd, readfromhost_fd, MESSAGE_SIZE, numMessages);
