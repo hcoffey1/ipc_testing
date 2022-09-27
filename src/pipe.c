@@ -70,6 +70,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to create pipe.\n");
         return 1;
     }
+    // Map sample data into memory--------
+    void *data = map_file(INPUT_FILE, &FILE_SIZE);
+
+    //int numMessages = FILE_SIZE / MESSAGE_SIZE;
+    int numMessages = 1000;
+    //int remainderSize = fileSize % messageSize;
 
     // Fork child process----------------
     pid_t id;
@@ -81,6 +87,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+
     // Parent process--------
     else if (id != 0)
     {
@@ -90,14 +97,12 @@ int main(int argc, char **argv)
         int writetochild_fd = p1fd[1];
         int readfromchild_fd = p2fd[0];
 
-        // Map sample data into memory--------
-        void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
-        print_log_header();
+        //print_log_header();
 
         // Example work loop
-        hc_write_loop(writetochild_fd, readfromchild_fd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS);
-        hc_latency_loop(writetochild_fd, readfromchild_fd, data, MESSAGE_SIZE, NUM_MESSAGES, 1);
+        hc_write_loop(writetochild_fd, readfromchild_fd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS, numMessages);
+        hc_latency_loop(writetochild_fd, readfromchild_fd, data, MESSAGE_SIZE, numMessages, 1);
 
         wait(NULL);
     }
@@ -114,8 +119,8 @@ int main(int argc, char **argv)
         //close(p1fd[1]);
 
         // Example work loop
-        hc_read_loop(writetohost_fd, readfromhost_fd, MESSAGE_SIZE);
-        hc_latency_loop(writetohost_fd, readfromhost_fd, NULL, MESSAGE_SIZE, NUM_MESSAGES, 0);
+        hc_read_loop(writetohost_fd, readfromhost_fd, MESSAGE_SIZE, numMessages);
+        hc_latency_loop(writetohost_fd, readfromhost_fd, NULL, MESSAGE_SIZE, numMessages, 0);
 
         close(readfromhost_fd);
     }

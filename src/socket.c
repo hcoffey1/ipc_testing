@@ -136,7 +136,7 @@ int main(int argc, char **argv)
         int clientfd = host_server(PORT);
 
         // Example work loop
-        hc_write_loop(clientfd, clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS);
+        hc_write_loop(clientfd, clientfd, data, FILE_SIZE, MESSAGE_SIZE, NUM_ITERATIONS, NUM_MESSAGES);
         hc_latency_loop(clientfd, clientfd, data, MESSAGE_SIZE, NUM_MESSAGES, 1);
     }
     // Client code----------------------
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
         int hostfd = client_connect(PORT);
 
         // Example work loop
-        hc_read_loop(hostfd, hostfd, MESSAGE_SIZE);
+        hc_read_loop(hostfd, hostfd, MESSAGE_SIZE, NUM_MESSAGES);
         hc_latency_loop(hostfd, hostfd, NULL, MESSAGE_SIZE, NUM_MESSAGES, 0);
     }
 
