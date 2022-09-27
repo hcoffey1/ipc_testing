@@ -74,7 +74,7 @@ int main(int argc, char **argv)
     void *data = map_file(INPUT_FILE, &FILE_SIZE);
 
     //int numMessages = FILE_SIZE / MESSAGE_SIZE;
-    int numMessages = 1000;
+    int numMessages = 1ul << 10;
     //int remainderSize = fileSize % messageSize;
 
     // Fork child process----------------
