@@ -5,7 +5,6 @@
 #include <util.h>
 
 size_t MESSAGE_SIZE;
-size_t NUM_ITERATIONS;
 size_t SHARED_BUFFER_SIZE;
 
 // mmap shared memory
@@ -32,6 +31,8 @@ struct SharedReceiveArgs
 {
     void *sharedBuffer;
     void *receiveBuffer;
+    size_t numMessages;
+    size_t messageSize;
 };
 
 long FILE_SIZE;
@@ -52,48 +53,67 @@ void *get_buffer_write_address(void *sharedBuffer)
     return sharedBuffer + sizeof(struct BufferInfo);
 }
 
+// If buffer has been written to, copy values in.
+// Send confirmation by clearing written state
+int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
+{
+    int readret = 0;
+    while(1)
+    {
+        pthread_mutex_lock(&memLock);
+        if (bi->written == 1)
+        {
+            memcpy(receiveBuffer, sharedBuffer, bi->size);
+            bi->written = 0;
+            pthread_mutex_unlock(&memLock);
+            break;
+        }
+        else if (bi->written == 2)
+        {
+            readret = -1;
+            bi->written = 0;
+            pthread_mutex_unlock(&memLock);
+            break;
+        }
+        pthread_mutex_unlock(&memLock);
+    }
+
+    return readret;
+}
+
 // Return true if write was completed
 int shared_write(void *buffer, void *data, size_t messageSize, struct BufferInfo *bi)
 {
     int writeret = 0;
-    pthread_mutex_lock(&memLock);
-    // If buffer is ready to be written to, copy new data in
-    if (bi->written == 0)
+    while(1)
     {
-        memcpy(buffer, data, messageSize);
-        bi->size = messageSize;
-        bi->written = 1;
+        pthread_mutex_lock(&memLock);
+        // If buffer is ready to be written to, copy new data in
+        if (bi->written == 0)
+        {
+            memcpy(buffer, data, messageSize);
+            bi->size = messageSize;
+            bi->written = 1;
 
-        writeret = 1;
+            writeret = 1;
+            pthread_mutex_unlock(&memLock);
+            break;
+        }
+        pthread_mutex_unlock(&memLock);
     }
-    pthread_mutex_unlock(&memLock);
     return writeret;
 }
 
 void shared_send_messages(void *buffer, struct BufferInfo *bi, void *data, size_t messageSize, size_t numMessages)
 {
-    int offset = 0; // Offset in data to be sent
     int m = 0;
     while (m < numMessages)
     {
-        int writeret = shared_write(buffer, data + offset, MESSAGE_SIZE, bi);
-        if (writeret)
-        {
-            offset += messageSize;
-            m++;
-        }
+        shared_write(buffer, data, MESSAGE_SIZE, bi);
+        m++;
     }
 
-    size_t remainderSize = FILE_SIZE - offset;
-    // Send remainder data
-    while (1)
-    {
-        int writeret = shared_write(buffer, data + offset, remainderSize, bi);
-        if (writeret)
-        {
-            break;
-        }
-    }
+    size_t remainderSize = FILE_SIZE;
 }
 
 void shared_send_kill(struct BufferInfo *bi)
@@ -111,48 +131,53 @@ void shared_send_kill(struct BufferInfo *bi)
     }
 }
 
+void hc_shared_latency_loop(void* sharedBuffer, void * data, size_t messageSize, size_t numMessages, int isHost)
+{
+    struct BufferInfo *bi = sharedBuffer;
+    void *bufferStart = get_buffer_write_address(sharedBuffer);
+    char * inbuf = malloc(messageSize);
+    if(isHost)
+    {
+        printf("Running latency test\n");
+        for(int i = 0; i < numMessages; i++)
+        {
+            shared_write(bufferStart, data, messageSize, bi);
+            while(bi->written){}
+            shared_read(bufferStart, inbuf, bi);
+        }
+        printf("Done\n");
+    }
+    else
+    {
+        for(int i = 0; i < numMessages; i++)
+        {
+            shared_read(bufferStart, inbuf, bi);
+            shared_write(bufferStart, inbuf, messageSize, bi);
+            while(bi->written){}
+        }
+    }
+}
+
+// B/W
 void hc_shared_write_loop(void *sharedBuffer, void *data, size_t messageSize, size_t numMessages)
 {
+    printf("Running B/W loop, message size: %d\n", messageSize);
     // Retrieve buffer state and first writable position
     struct BufferInfo *bi = get_buffer_info(sharedBuffer);
     void *bufferStart = get_buffer_write_address(sharedBuffer);
 
-    int i = 0;
-    while (i < NUM_ITERATIONS)
-    {
-#ifdef SHOW_ITERATION
-        printf("Iteration : %d\n", i);
-#endif
+    shared_send_messages(bufferStart, bi, data, messageSize, numMessages);
 
-        shared_send_messages(bufferStart, bi, data, messageSize, numMessages);
-        i++;
-    }
-
-    // When done, wait for last sent message to be processed then terminate
+    // When done, wait for last sent message to be processed then terminate (waits for ack)
     shared_send_kill(bi);
+
+    printf("Done\n");
+
+    hc_shared_latency_loop(sharedBuffer, data, messageSize, numMessages, 1);
 }
 
-// If buffer has been written to, copy values in.
-// Send confirmation by clearing written state
-int shared_read(void *sharedBuffer, void *receiveBuffer, struct BufferInfo *bi)
-{
-    int readret = 0;
-    pthread_mutex_lock(&memLock);
-    if (bi->written == 1)
-    {
-        memcpy(receiveBuffer, sharedBuffer, bi->size);
-        bi->written = 0;
-    }
-    else if (bi->written == 2)
-    {
-        readret = -1;
-    }
-    pthread_mutex_unlock(&memLock);
 
-    return readret;
-}
-
-void hc_shared_read_loop(void *sharedBuffer, void *receiveBuffer)
+void hc_shared_read_loop(void *sharedBuffer, void *receiveBuffer, size_t messageSize, size_t numMessages)
 {
     // Retrieve buffer state
     struct BufferInfo *bi = sharedBuffer;
@@ -165,7 +190,11 @@ void hc_shared_read_loop(void *sharedBuffer, void *receiveBuffer)
             break;
         }
     }
+
+    hc_shared_latency_loop(sharedBuffer, NULL, messageSize, numMessages, 0);
 }
+
+
 
 // Sender -----------------------
 void *send_thread(void *args)
@@ -188,9 +217,11 @@ void *receive_thread(void *args)
     // Read in arguments from pointer
     void *sharedBuffer = ((struct SharedReceiveArgs *)args)->sharedBuffer;
     void *receiveBuffer = ((struct SharedReceiveArgs *)args)->receiveBuffer;
+    size_t numMessages = ((struct SharedReceiveArgs *)args)->numMessages;
+    size_t messageSize= ((struct SharedReceiveArgs *)args)->messageSize;
 
     // Example work loop
-    hc_shared_read_loop(sharedBuffer, receiveBuffer);
+    hc_shared_read_loop(sharedBuffer, receiveBuffer, messageSize, numMessages);
 
     return NULL;
 }
@@ -238,7 +269,6 @@ int main(int argc, char **argv)
     }
 
     MESSAGE_SIZE = 1ul << atoi(argv[1]);
-    NUM_ITERATIONS = 1ul << atoi(argv[2]);
 
     SHARED_BUFFER_SIZE = MESSAGE_SIZE;
 
@@ -251,21 +281,22 @@ int main(int argc, char **argv)
 
     void *sharedBuffer = init_shared_buffer(SHARED_BUFFER_SIZE);
 
+    size_t numMessages = 1ul<<10;
+
     // Prepare arguments for send thread
     struct SharedSendArgs sendArgs;
     sendArgs.data = map_file(INPUT_FILE, &FILE_SIZE);
     sendArgs.messageSize = MESSAGE_SIZE;
-    sendArgs.numMessages = FILE_SIZE / MESSAGE_SIZE;
+    sendArgs.numMessages = numMessages;
     sendArgs.sharedBuffer = sharedBuffer;
 
     // Prepare arguments for receive thread
     char receive[MESSAGE_SIZE];
     struct SharedReceiveArgs recArgs;
+    recArgs.messageSize = MESSAGE_SIZE;
     recArgs.receiveBuffer = receive;
     recArgs.sharedBuffer = sharedBuffer;
-
-    // Print test info
-    print_log_header();
+    recArgs.numMessages = numMessages;
 
     // Spin off threads
     printf("Spawning threads\n");
